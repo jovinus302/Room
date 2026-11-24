@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { Member, MemberResponse, RoomState } from '@shared/types';
 import { describeResponse } from '@shared/reducer';
 import { attendees, effectivePlaceId, exclusionReasons, responseCounts, suggestTime } from '@shared/planLogic';
@@ -8,6 +9,12 @@ const fl = (flash: Flash, key: string) => (flash[key] ? ' flash' : '');
 
 export function PlanBoard({ state, me, flash }: { state: RoomState; me: Member; flash: Flash }) {
   const plan = state.plan;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // 확정·변경 감지 순간엔 카드 맨 위(배너·영향 영역)가 보이도록
+  const focusKey = `${plan?.status}:${plan?.review?.id ?? ''}:${plan?.version}`;
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [focusKey]);
   return (
     <section className="pane board">
       <div className="pane-head">
@@ -17,7 +24,7 @@ export function PlanBoard({ state, me, flash }: { state: RoomState; me: Member; 
         </div>
         {plan && <StatusPill state={state} />}
       </div>
-      <div className="board-scroll">{plan ? <PlanCard state={state} me={me} flash={flash} /> : <EmptyBoard />}</div>
+      <div className="board-scroll" ref={scrollRef}>{plan ? <PlanCard state={state} me={me} flash={flash} /> : <EmptyBoard />}</div>
     </section>
   );
 }
@@ -66,6 +73,7 @@ function PlanCard({ state, me, flash }: { state: RoomState; me: Member; flash: F
 
   return (
     <article className={`plan-card${fl(flash, 'plan')}${confirmed ? ' is-confirmed' : ''}`}>
+      <div className="plan-top">
       {plan.review && (
         <div className={`review-banner${fl(flash, 'review')}`}>
           <div className="review-icon">⚠️</div>
@@ -120,6 +128,7 @@ function PlanCard({ state, me, flash }: { state: RoomState; me: Member; flash: F
           />
         </div>
       </header>
+      </div>
 
       <section className="sect">
         <div className={`sect-head${fl(flash, 'summary')}`}>
@@ -244,11 +253,13 @@ function Fact({ icon, label, value, tag, tone, className = '' }: { icon: string;
   return (
     <div className={`fact${className}`}>
       <span className="fact-icon">{icon}</span>
-      <div>
-        <div className="fact-label">{label}</div>
+      <div className="fact-main">
+        <div className="fact-label">
+          {label}
+          <span className={`fact-tag t-${tone}`}>{tag}</span>
+        </div>
         <div className={`fact-value ${value === '미정' ? 'undecided' : ''}`}>{value}</div>
       </div>
-      <span className={`fact-tag t-${tone}`}>{tag}</span>
     </div>
   );
 }
