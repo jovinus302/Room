@@ -30,14 +30,15 @@ export function suggestTime(plan: Plan): string {
 
 export function attendees(plan: Plan): MemberId[] {
   return Object.entries(plan.responses)
-    .filter(([, r]) => r.value === 'prefer' || r.value === 'maybe')
+    .filter(([, r]) => r.value === 'prefer') // 미정(maybe)은 참석 인원에 넣지 않는다
     .map(([id]) => id);
 }
 
 export function responseCounts(plan: Plan) {
   const rs = Object.values(plan.responses);
   return {
-    prefer: rs.filter((r) => r.value === 'prefer').length,
+    prefer: rs.filter((r) => r.value === 'prefer' && r.by === 'human').length, // 본인 응답만
+    agentPrefer: rs.filter((r) => r.value === 'prefer' && r.by === 'agent').length,
     maybe: rs.filter((r) => r.value === 'maybe').length,
     no: rs.filter((r) => r.value === 'no').length,
     pending: rs.filter((r) => r.value === 'pending').length,
@@ -52,4 +53,10 @@ export function nextSaturdayLabel(now = new Date()): string {
   if (add <= 3) add += 7;
   d.setDate(d.getDate() + add);
   return `다음 토요일 · ${d.getMonth() + 1}/${d.getDate()}(토)`;
+}
+
+// 신뢰 규칙: 부재자의 Agent 추정 응답은 확정 이후에도 본인 확인 전까지 '확인 대기'로 남는다.
+export function awaitingConfirmation(plan: Plan, ids?: MemberId[]): MemberId[] {
+  const pool = ids ?? Object.keys(plan.responses);
+  return pool.filter((id) => plan.responses[id]?.by === 'agent' && plan.responses[id]?.value !== 'pending');
 }

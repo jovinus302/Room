@@ -60,6 +60,9 @@ await post('confirm', { userId: 'mom' });
 s = await waitFor('confirmed', (s) => s.plan.status === 'confirmed');
 ok(s.plan.confirmed.placeId === 'museum' && s.plan.confirmed.time === '오후 1시 출발', `확정: ${s.plan.confirmed.time} · ${s.plan.confirmed.placeId} · ${s.plan.confirmed.attendees.length}명`);
 
+ok(JSON.stringify(s.plan.confirmed.awaitingAtConfirm) === '["grandma","grandpa"]', '신뢰 규칙: 할머니·할아버지는 확정 후에도 확인 대기 (추정 응답 유지)');
+ok(s.plan.responses.grandma.by === 'agent', '추정 응답이 확정으로 승격되지 않음');
+
 console.log('6) 변경 전파');
 await post('message', { userId: 'dad', text: '나 그날 오전에 일 생겼어' });
 s = await waitFor('review', (s) => s.plan.review);

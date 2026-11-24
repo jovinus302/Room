@@ -38,7 +38,7 @@ export function ChatPanel({ state, me, typing, onSend }: { state: RoomState; me:
     <section className="pane chat">
       <div className="pane-head">
         <div>
-          <div className="pane-title">👨‍👩‍👧‍👦 {state.roomName}</div>
+          <div className="pane-title">{state.roomName}</div>
           <div className="pane-sub">
             구성원 {state.members.length}명 · 접속 {online}명
           </div>

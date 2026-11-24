@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { store } from './store.ts';
 import { AGENT_MODE, agentSay, onMemberMessage, resetAgent } from './agent/index.ts';
 import { newId } from './agent/tools.ts';
-import { attendees, effectivePlaceId, exclusionReasons, suggestTime } from '../shared/planLogic.ts';
+import { attendees, awaitingConfirmation, effectivePlaceId, exclusionReasons, suggestTime } from '../shared/planLogic.ts';
 import { describeResponse } from '../shared/reducer.ts';
 import { iga, memberName } from '../shared/seed.ts';
 import type { ResponseValue, ServerPush, TimeWindow } from '../shared/types.ts';
@@ -133,10 +133,16 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
       if (!placeId) return json(res, 409, { error: 'no available place' });
       const time = suggestTime(s.plan);
       const att = attendees(s.plan);
-      store.dispatch({ type: 'plan_confirmed', time, placeId, attendees: att, by: userId });
+      // 신뢰 규칙: 추정 응답은 확정으로 승격하지 않는다 — '확인 대기'로 남긴다
+      const awaiting = awaitingConfirmation(s.plan, att);
+      store.dispatch({ type: 'plan_confirmed', time, placeId, attendees: att, awaitingAtConfirm: awaiting, by: userId });
       const place = s.candidates.find((c) => c.id === placeId)!;
+      const names = awaiting.map((id) => memberName(s, id)).join('·');
       agentSay(
-        `✅ ${iga(who)} 계획을 확정했어요 — ${s.plan.dateLabel.split(' · ')[1] ?? s.plan.dateLabel} ${time}, ${place.name}, ${att.length}명 참석. 이제 이 카드가 우리 가족의 최신 계획이에요.`,
+        `✅ ${iga(who)} 계획을 확정했어요 — ${s.plan.dateLabel.split(' · ')[1] ?? s.plan.dateLabel} ${time}, ${place.name}, ${att.length}명.` +
+          (awaiting.length
+            ? ` 단, ${names}의 참석은 Agent 추정이라 본인 확인 전까지 「확인 대기」로 둘게요.`
+            : ' 이제 이 카드가 우리 가족의 최신 계획이에요.'),
       );
       return json(res, 200, { ok: true });
     }

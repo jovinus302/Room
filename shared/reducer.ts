@@ -47,10 +47,13 @@ function reduce(s: RoomState, e: DomainEvent, at: number): RoomState {
       if (!s.plan) return s;
       const label = describeResponse(e.response.value, e.response.window);
       const who = memberName(s, e.userId);
+      const wasAwaiting = s.plan.status === 'confirmed' && s.plan.responses[e.userId]?.by === 'agent' && e.response.by === 'human';
       const text =
         e.response.by === 'agent'
           ? `${who} 응답 추정: ${label} (확인 대기)`
-          : `${who} 응답: ${label}`;
+          : wasAwaiting
+            ? `${who} 본인 확인: ${label} — 확인 대기 해소`
+            : `${who} 응답: ${label}`;
       const plan = withLog(
         { ...s.plan, responses: { ...s.plan.responses, [e.userId]: e.response } },
         { at, actor: e.actor, text },
@@ -90,10 +93,10 @@ function reduce(s: RoomState, e: DomainEvent, at: number): RoomState {
           status: 'confirmed',
           version: 1,
           selectedCandId: e.placeId,
-          confirmed: { time: e.time, placeId: e.placeId, attendees: e.attendees, by: e.by, at },
+          confirmed: { time: e.time, placeId: e.placeId, attendees: e.attendees, awaitingAtConfirm: e.awaitingAtConfirm ?? [], by: e.by, at },
           review: null,
         },
-        { at, actor: memberName(s, e.by), text: `계획 확정 v1: ${e.time} · ${cand?.name ?? e.placeId} · ${e.attendees.length}명` },
+        { at, actor: memberName(s, e.by), text: `계획 확정 v1: ${e.time} · ${cand?.name ?? e.placeId} · ${e.attendees.length}명${e.awaitingAtConfirm?.length ? ` (확인 대기 ${e.awaitingAtConfirm.length}명 유지)` : ''}` },
       );
       return { ...s, plan };
     }

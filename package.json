@@ -11,7 +11,8 @@
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "check": "node scripts/scenario-check.mjs",
-    "e2e": "node scripts/e2e-demo.mjs"
+    "e2e": "node scripts/e2e-demo.mjs",
+    "video": "node scripts/make-video.mjs"
   },
   "dependencies": {
     "react": "18.3.1",

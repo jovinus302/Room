@@ -69,6 +69,7 @@ export interface Plan {
     time: string;
     placeId: string;
     attendees: MemberId[];
+    awaitingAtConfirm: MemberId[]; // 확정 시점에 Agent 추정(본인 확인 전)이던 인원
     by: MemberId;
     at: number;
   };
@@ -112,7 +113,7 @@ export type DomainEvent =
     }
   | { type: 'condition_added'; condition: Condition; actor: string }
   | { type: 'candidate_selected'; candId: string; by: MemberId }
-  | { type: 'plan_confirmed'; time: string; placeId: string; attendees: MemberId[]; by: MemberId }
+  | { type: 'plan_confirmed'; time: string; placeId: string; attendees: MemberId[]; awaitingAtConfirm: MemberId[]; by: MemberId }
   | { type: 'change_detected'; review: Review }
   | { type: 'review_resolved'; resolution: 'accept' | 'keep'; by: MemberId };
 

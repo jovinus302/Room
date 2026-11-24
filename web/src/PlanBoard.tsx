@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { Member, MemberResponse, RoomState } from '@shared/types';
 import { describeResponse } from '@shared/reducer';
-import { attendees, effectivePlaceId, exclusionReasons, responseCounts, suggestTime } from '@shared/planLogic';
+import { attendees, awaitingConfirmation, effectivePlaceId, exclusionReasons, responseCounts, suggestTime } from '@shared/planLogic';
 import { post } from './api';
 
 type Flash = Record<string, number>;
@@ -19,7 +19,7 @@ export function PlanBoard({ state, me, flash }: { state: RoomState; me: Member; 
     <section className="pane board">
       <div className="pane-head">
         <div>
-          <div className="pane-title">📋 공동 계획</div>
+          <div className="pane-title">공동 계획</div>
           <div className="pane-sub">대화가 곧 계획이 됩니다 · 실시간 반영</div>
         </div>
         {plan && <StatusPill state={state} />}
@@ -55,7 +55,15 @@ function EmptyBoard() {
 function StatusPill({ state }: { state: RoomState }) {
   const p = state.plan!;
   if (p.review) return <span className="pill pill-warn">재확인 필요</span>;
-  if (p.status === 'confirmed') return <span className="pill pill-ok">확정 · v{p.version}</span>;
+  if (p.status === 'confirmed') {
+    const waiting = awaitingConfirmation(p, p.confirmed?.attendees).length;
+    return (
+      <span className="pill-group">
+        <span className="pill pill-ok">확정 · v{p.version}</span>
+        {waiting > 0 && <span className="pill pill-agent">확인 대기 {waiting}명</span>}
+      </span>
+    );
+  }
   return <span className="pill pill-draft">초안 · 조율 중</span>;
 }
 
@@ -70,6 +78,10 @@ function PlanCard({ state, me, flash }: { state: RoomState; me: Member; flash: F
   const confirmed = plan.status === 'confirmed';
   const anyResponse = counts.pending < state.members.length - 1 || counts.agentEstimated > 0;
   const dateParts = plan.dateLabel.split(' · ');
+  const nameOf = (id: string) => state.members.find((m) => m.id === id)?.name ?? id;
+  // 신뢰 규칙: 추정 응답은 확정으로 승격되지 않는다 (live — 본인이 확인하면 즉시 빠짐)
+  const awaiting = awaitingConfirmation(plan, att);
+  const verifiedCount = att.length - awaiting.length;
 
   return (
     <article className={`plan-card${fl(flash, 'plan')}${confirmed ? ' is-confirmed' : ''}`}>
@@ -100,8 +112,15 @@ function PlanCard({ state, me, flash }: { state: RoomState; me: Member; flash: F
           <div>
             <b>확정된 최신 계획 · v{plan.version}</b>
             <div>
-              {dateParts[1] ?? plan.dateLabel} {plan.confirmed.time} · {place?.name} · {plan.confirmed.attendees.length}명 참석
+              {dateParts[1] ?? plan.dateLabel} {plan.confirmed.time} · {place?.name} · 참석 {verifiedCount}명 확정
+              {awaiting.length > 0 && <> + 확인 대기 {awaiting.length}명</>}
             </div>
+            {awaiting.length > 0 && (
+              <div className="awaiting-line">
+                <span className="badge badge-agent">확인 대기</span>
+                {awaiting.map(nameOf).join(' · ')} — Agent 추정 응답이라 본인 확인 전까지 확정 인원에 넣지 않아요
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -128,13 +147,32 @@ function PlanCard({ state, me, flash }: { state: RoomState; me: Member; flash: F
           />
         </div>
       </header>
+        {!confirmed && (
+          <footer className="confirm-bar">
+            <div className="confirm-preview">
+              <div className="muted small">확정하면 이렇게 정리돼요</div>
+              <div>
+                <b>{dateParts[1] ?? plan.dateLabel}</b> · {time} · {place?.name ?? '장소 없음'} · 참석 {verifiedCount}명
+                {awaiting.length > 0 && <> + 확인 대기 {awaiting.length}명</>}
+              </div>
+              {awaiting.length > 0 && (
+                <div className="confirm-warn">
+                  ⚠ 추정 응답 {awaiting.length}명 — 본인 확인 전 ({awaiting.map(nameOf).join(' · ')}). 확정해도 이 인원은 「확인 대기」로 남아요.
+                </div>
+              )}
+            </div>
+            <button className="primary lg" disabled={!place} onClick={() => post('confirm', { userId: me.id })}>
+              확정
+            </button>
+          </footer>
+        )}
       </div>
 
       <section className="sect">
         <div className={`sect-head${fl(flash, 'summary')}`}>
           <h3>응답</h3>
           <div className="counts">
-            <span className="count c-prefer">가능 {counts.prefer}</span>
+            <span className="count c-prefer">본인 가능 {counts.prefer}</span>
             {counts.maybe > 0 && <span className="count c-maybe">미정 {counts.maybe}</span>}
             {counts.no > 0 && <span className="count c-no">불참 {counts.no}</span>}
             <span className="count c-pending">응답 대기 {counts.pending}</span>
@@ -219,19 +257,6 @@ function PlanCard({ state, me, flash }: { state: RoomState; me: Member; flash: F
         </ul>
       </section>
 
-      {!confirmed && (
-        <footer className="confirm-bar">
-          <div className="confirm-preview">
-            <div className="muted small">확정하면 이렇게 정리돼요</div>
-            <div>
-              <b>{dateParts[1] ?? plan.dateLabel}</b> · {time} · {place?.name ?? '장소 없음'} · {att.length}명
-            </div>
-          </div>
-          <button className="primary lg" disabled={!place} onClick={() => post('confirm', { userId: me.id })}>
-            확정
-          </button>
-        </footer>
-      )}
 
       <details className="log">
         <summary>변경 기록 {plan.log.length}건</summary>
