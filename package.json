@@ -1,0 +1,32 @@
+{
+  "name": "ensemble-room-demo",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Agentic BAND demo — 가족 대화를 에이전트가 공동 계획으로 유지하는 라이브 데모",
+  "scripts": {
+    "dev": "concurrently -k -n server,web -c blue,magenta \"npm:dev:server\" \"npm:dev:web\"",
+    "dev:server": "tsx watch --clear-screen=false server/index.ts",
+    "dev:web": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "check": "node scripts/scenario-check.mjs",
+    "e2e": "node scripts/e2e-demo.mjs"
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.0",
+    "playwright-core": "^1.49.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11"
+  },
+  "engines": { "node": ">=20" }
+}
